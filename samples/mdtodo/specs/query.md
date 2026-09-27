@@ -1,0 +1,1 @@
+Implement `mdtodo/query.py` exactly per its docstrings and `DESIGN.md` (do not change signatures). Write `tests/test_query.py` covering each filter alone and combined, sorting with missing due dates last, stability, and that inputs are not mutated. Construct `Task` objects directly — do not depend on parser/storage (they are being written in parallel by other agents).

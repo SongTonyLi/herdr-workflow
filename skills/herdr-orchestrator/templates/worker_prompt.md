@@ -28,4 +28,6 @@ $deps
    ```
    Use BLOCKED if you cannot proceed without a decision or information; say exactly what you need. Do not guess at requirements that are ambiguous — ask.
 
+Your shell is sandboxed: writes outside your worktree (and temp dirs) are denied and cannot be escalated — don't try; package caches are already pointed at temp dirs, so `uvx`/`pip` work as-is.
+
 Work autonomously; do not ask for confirmation. Finish with a one-paragraph summary.

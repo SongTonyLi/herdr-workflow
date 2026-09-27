@@ -357,6 +357,7 @@ def start_turn(st: Store, state: dict, w: dict, task: dict, prompt: str, kind: s
         "profile": state["config"].get("dsh_profile", "headless"),
         "session_id": session_id,
         "dsh_bin": os.environ.get("HW_DSH_BIN"),
+        "env": worker_env(state, cwd or task["worktree"]),
     }
     spec_path = logd / f"turn-{n}.json"
     spec_path.write_text(json.dumps(spec, indent=2))
@@ -375,6 +376,15 @@ def start_turn(st: Store, state: dict, w: dict, task: dict, prompt: str, kind: s
     st.event("turn_start", worker=w["name"], model=w["model"], task=task["id"], kind=kind, turn=n,
              resume=bool(session_id))
     return {"worker": w["name"], "model": w["model"], "pane": w["pane_id"], "task": task["id"], "turn": n, "kind": kind}
+
+
+def worker_env(state: dict, cwd: str) -> dict:
+    """Env for dsh turns. dsh sandboxes writes to the worktree (+ temp dirs), so tool caches go to tmp."""
+    import tempfile
+
+    tmp = tempfile.gettempdir().rstrip("/")
+    return {k: str(v).replace("{tmp}", tmp).replace("{worktree}", cwd)
+            for k, v in (state["config"].get("worker_env") or {}).items()}
 
 
 def interrupt_worker(st: Store, state: dict, w: dict, timeout: float = 45) -> dict | None:

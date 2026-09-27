@@ -30,6 +30,10 @@ def ensure_repo(root: Path) -> str:
     return git(root, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
 
 
+# Orchestrator state plus build/test junk that workers' tool runs leave behind; never auto-commit these.
+EXCLUDES = [".hw/", "__pycache__/", "*.pyc", ".pytest_cache/", ".uv-cache/", ".uv-tools/", ".venv/", ".mypy_cache/", ".ruff_cache/"]
+
+
 def exclude_hw(root: Path) -> None:
     gd = Path(git(root, "rev-parse", "--git-common-dir").stdout.strip())
     if not gd.is_absolute():
@@ -37,8 +41,10 @@ def exclude_hw(root: Path) -> None:
     excl = gd / "info" / "exclude"
     excl.parent.mkdir(parents=True, exist_ok=True)
     text = excl.read_text() if excl.exists() else ""
-    if ".hw/" not in text.split():
-        excl.write_text(text + ("" if text.endswith("\n") or not text else "\n") + ".hw/\n")
+    have = set(text.split())
+    missing = [p for p in EXCLUDES if p not in have]
+    if missing:
+        excl.write_text(text + ("" if text.endswith("\n") or not text else "\n") + "\n".join(missing) + "\n")
 
 
 def branch_exists(root: Path, branch: str) -> bool:

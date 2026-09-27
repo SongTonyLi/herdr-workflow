@@ -1,0 +1,1 @@
+Implement `mdtodo/parser.py` exactly per the docstrings/stubs and `DESIGN.md` already in the repo (do not change signatures). Write thorough tests in `tests/test_parser.py`: round-trip of format/parse, tags, due dates, invalid due dates (raise ParseError per design), `[X]` uppercase, extra spaces, non-task lines preserved by parse_document/render_document.

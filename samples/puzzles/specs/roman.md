@@ -1,0 +1,1 @@
+Create `puzzles/roman.py` with `to_roman(n: int) -> str` (1..3999, else ValueError) and `from_roman(s: str) -> int` which accepts only canonical, uppercase numerals (reject `IIII`, `VX`, `IC`, `MMMM`, empty, lowercase -> ValueError). Property: from_roman(to_roman(n)) == n for all n. Tests in `tests/test_roman.py`.

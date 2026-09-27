@@ -104,6 +104,7 @@ def run(spec_path: str) -> int:
         child = subprocess.Popen(
             cmd,
             cwd=spec["cwd"],
+            env={**os.environ, **(spec.get("env") or {})},
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=None,  # let diagnostics show in the pane

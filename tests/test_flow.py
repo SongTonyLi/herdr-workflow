@@ -188,3 +188,16 @@ def test_escalation_after_two_failures_via_schedule(env):
     assert t["failures"] >= 2
     shown = env.hwj("task", "show", "f")
     assert shown["effective_tier"] == "reason"
+
+
+def test_build_junk_is_never_merged(env):
+    add(env, "j", spec="[[file j.txt]]")
+    env.hwj("assign", "j")
+    env.wait_all()
+    wt = env.root / ".hw/wt/j"
+    (wt / "__pycache__").mkdir()
+    (wt / "__pycache__" / "x.pyc").write_bytes(b"junk")
+    (wt / "real.txt").write_text("forgot to commit\n")
+    env.hwj("merge", "j")
+    files = subprocess.run(["git", "ls-files"], cwd=env.root, capture_output=True, text=True).stdout.split()
+    assert "real.txt" in files and not any("pycache" in f for f in files)

@@ -28,7 +28,10 @@
             "providers": {
               "openrouter": {
                 "models": [
-                  {"id": "deepseek/deepseek-v4-flash-0731", "name": "deepseek/deepseek-v4-flash-0731"}
+                  {
+                    "id": "deepseek/deepseek-v4-flash-0731",
+                    "name": "deepseek/deepseek-v4-flash-0731"
+                  }
                 ]
               }
             }
@@ -47,9 +50,18 @@
     "docs": "fast",
     "chore": "fast"
   },
-  "tier_order": ["fast", "reason"],
+  "tier_order": [
+    "fast",
+    "reason"
+  ],
   "max_workers": 4,
   "escalate_after": 2,
   "stall_seconds": 600,
-  "dsh_profile": "headless"
+  "dsh_profile": "headless",
+  "worker_env": {
+    "UV_CACHE_DIR": "{tmp}/hw-uv/cache",
+    "UV_TOOL_DIR": "{tmp}/hw-uv/tools",
+    "UV_PYTHON_INSTALL_DIR": "{tmp}/hw-uv/python",
+    "PIP_CACHE_DIR": "{tmp}/hw-pip"
+  }
 }
