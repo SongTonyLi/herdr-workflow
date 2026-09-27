@@ -604,28 +604,29 @@ def cmd_sync(a):
     out(changes, True)
 
 
+WAIT_EVENTS = ("turn_end", "turn_lost", "worker_dead", "turn_stalled")
+
+
 def cmd_wait(a):
-    """Block until some turn ends / stalls / is lost (or all, with --all)."""
+    """Block until some turn ends / stalls / is lost (or none are running, with --all).
+
+    Reads the durable event log rather than this process's own sync results, so concurrent
+    `hw status`/`hw wait` callers can't swallow each other's events.
+    """
     st = store()
+    since = a.since if a.since is not None else now()
     deadline = time.time() + a.timeout if a.timeout else None
-    collected = []
     while True:
         with st.mutate() as s:
-            changes = sync_state(st, s)
+            sync_state(st, s)
             running = [w["name"] for w in s["workers"].values() if w.get("current") and not w["current"].get("lost")]
-        collected += changes
-        interesting = [c for c in collected if c["type"] in ("turn_end", "turn_lost", "worker_dead", "stalled")]
-        if interesting and (not a.all or not running):
-            out({"events": collected, "still_running": running}, True)
-            return
-        if not running and not a.all:
-            out({"events": collected, "still_running": [], "note": "nothing running"}, True)
-            return
-        if a.all and not running:
-            out({"events": collected, "still_running": []}, True)
-            return
-        if deadline and time.time() > deadline:
-            out({"events": collected, "still_running": running, "timeout": True}, True)
+            review = [t["id"] for t in s["tasks"].values() if t["status"] == "review"]
+            ready = [t["id"] for t in sched.ready_tasks(s)]
+        evs = [e for e in st.events(500) if e["ts"] >= since and e["event"] in WAIT_EVENTS]
+        done = (evs and not a.all) or not running or (deadline and time.time() > deadline)
+        if done:
+            out({"events": evs, "still_running": running, "needs_review": review, "ready": ready,
+                 "since": since, **({"timeout": True} if running and not evs and deadline and time.time() > deadline else {})}, True)
             return
         time.sleep(a.interval)
 
@@ -1005,6 +1006,7 @@ def build() -> argparse.ArgumentParser:
     s.add_argument("--timeout", type=float, default=0)
     s.add_argument("--interval", type=float, default=3)
     s.add_argument("--all", action="store_true")
+    s.add_argument("--since", type=float, help="report events since this unix ts (default: now)")
     s.set_defaults(fn=cmd_wait)
 
     s = sub.add_parser("review", help="verify + report for a task's branch")

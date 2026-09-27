@@ -13,3 +13,7 @@ H="$HERE/../puzzles/hidden_tests"
 "$HW" task add mdhtml --kind implement --title "Markdown to HTML (long turn, will be killed)" --spec-file "$HERE/specs/mdhtml.md" \
   --files puzzles/mdhtml.py tests/test_mdhtml.py --verify "uvx --with pytest pytest -q -p no:cacheprovider tests/test_mdhtml.py"
 "$HW" todo
+# Added mid-run (flash passed hardexpr): a harder task to force the rescue ladder.
+"$HW" task add rrule --kind implement --title "RRULE expander (dateutil-exact) given to a fast model" --spec-file "$HERE/specs/rrule.md" \
+  --files puzzles/rrule.py tests/test_rrule.py \
+  --verify "PYTHONPATH=. uvx --with pytest --with python-dateutil pytest -q -p no:cacheprovider tests/test_rrule.py $HERE/hidden_tests/test_rrule_hidden.py"

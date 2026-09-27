@@ -95,7 +95,7 @@ def test_pane_killed_mid_turn_resumes_with_same_session(env):
     sid = env.dsh_calls()[0]["session"]
     subprocess.run([env.env["HW_HERDR_BIN"], "pane", "close", r["pane"]], env=env.env, check=True, capture_output=True)
     w = env.hwj("wait", "--interval", "0.3", "--timeout", "20")
-    types = {e["type"] for e in w["events"]}
+    types = {e["event"] for e in w["events"]}
     assert "worker_dead" in types
     s = env.state()
     assert s["tasks"]["slow"]["interrupted"] is True and s["tasks"]["slow"]["failures"] == 0
@@ -201,3 +201,15 @@ def test_build_junk_is_never_merged(env):
     env.hwj("merge", "j")
     files = subprocess.run(["git", "ls-files"], cwd=env.root, capture_output=True, text=True).stdout.split()
     assert "real.txt" in files and not any("pycache" in f for f in files)
+
+
+def test_concurrent_waiters_both_see_turn_end(env):
+    add(env, "w", spec="[[sleep 2]]")
+    env.hwj("assign", "w")
+    import sys
+    from conftest import HW
+    procs = [subprocess.Popen([sys.executable, str(HW), "wait", "--interval", "0.2", "--timeout", "30"],
+                              cwd=env.root, env=env.env, stdout=subprocess.PIPE, text=True) for _ in range(3)]
+    outs = [json.loads(p.communicate(timeout=60)[0]) for p in procs]
+    for o in outs:
+        assert [e["event"] for e in o["events"]] == ["turn_end"] and o["needs_review"] == ["w"]
