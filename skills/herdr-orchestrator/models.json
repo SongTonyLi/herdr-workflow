@@ -1,0 +1,55 @@
+{
+  "models": {
+    "grok": {
+      "provider": "cursor",
+      "model": "grok-4.7-high",
+      "tier": "reason",
+      "max_parallel": 2,
+      "notes": "Strong reasoning: design, interfaces, debugging, review, rescue of stuck workers."
+    },
+    "composer": {
+      "provider": "cursor",
+      "model": "composer-2.5-fast",
+      "tier": "fast",
+      "max_parallel": 3,
+      "notes": "Fast implementation of well-specified modules and tests."
+    },
+    "flash": {
+      "provider": "openrouter",
+      "model": "deepseek/deepseek-v4-flash-0731",
+      "tier": "fast",
+      "max_parallel": 3,
+      "notes": "Fast, cheap implementation; good for boilerplate, tests, docs.",
+      "patch": [
+        {
+          "id": "llm-pi-ai",
+          "name": "@deepseek-ai/dsh-llm-pi-ai",
+          "config": {
+            "providers": {
+              "openrouter": {
+                "models": [
+                  {"id": "deepseek/deepseek-v4-flash-0731", "name": "deepseek/deepseek-v4-flash-0731"}
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "kind_tier": {
+    "design": "reason",
+    "reason": "reason",
+    "debug": "reason",
+    "review": "reason",
+    "implement": "fast",
+    "test": "fast",
+    "docs": "fast",
+    "chore": "fast"
+  },
+  "tier_order": ["fast", "reason"],
+  "max_workers": 4,
+  "escalate_after": 2,
+  "stall_seconds": 600,
+  "dsh_profile": "headless"
+}

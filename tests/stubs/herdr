@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""Fake herdr: panes are background process slots tracked in $FAKE_HERDR_DIR/state.json."""
+import fcntl, json, os, signal, subprocess, sys
+
+D = os.environ["FAKE_HERDR_DIR"]
+os.makedirs(D, exist_ok=True)
+SP = os.path.join(D, "state.json")
+
+def load():
+    return json.load(open(SP)) if os.path.exists(SP) else {"n": 0, "tabs": {}, "panes": {}}
+
+def save(s):
+    json.dump(s, open(SP + ".tmp", "w")); os.replace(SP + ".tmp", SP)
+
+def ok(obj): print(json.dumps({"id": "fake", "result": obj})); sys.exit(0)
+def err(code, msg): print(json.dumps({"error": {"code": code, "message": msg}}), file=sys.stderr); sys.exit(1)
+
+def alive(pid):
+    try: os.kill(pid, 0); return True
+    except OSError: return False
+
+lock = open(os.path.join(D, "lock"), "a+"); fcntl.flock(lock, fcntl.LOCK_EX)
+s = load(); a = sys.argv[1:]
+with open(os.path.join(D, "calls.log"), "a") as f: f.write(json.dumps(a) + "\n")
+
+def new_pane(tab):
+    s["n"] += 1; pid = f"wT:p{s['n']}"
+    s["panes"][pid] = {"tab": tab, "w": 100, "h": 40, "proc": None, "label": None}
+    return pid
+
+def pane(pid):
+    p = s["panes"].get(pid)
+    if not p: err("pane_not_found", f"pane {pid} not found")
+    return p
+
+if a[:2] == ["tab", "create"]:
+    s["n"] += 1; tab = f"wT:t{s['n']}"; s["tabs"][tab] = True; p = new_pane(tab); save(s)
+    ok({"tab": {"tab_id": tab}, "root_pane": {"pane_id": p}})
+if a[:2] == ["tab", "get"]:
+    ok({"tab": {"tab_id": a[2]}}) if a[2] in s["tabs"] else err("tab_not_found", a[2])
+if a[:2] == ["pane", "get"]:
+    pane(a[2]); ok({"pane": {"pane_id": a[2]}})
+if a[:2] == ["pane", "layout"]:
+    tab = pane(a[3])["tab"]
+    ok({"layout": {"panes": [{"pane_id": k, "rect": {"width": v["w"], "height": v["h"]}} for k, v in s["panes"].items() if v["tab"] == tab]}})
+if a[:2] == ["pane", "split"]:
+    src = pane(a[2]); d = a[a.index("--direction") + 1]
+    if d == "right": src["w"] //= 2
+    else: src["h"] //= 2
+    p = new_pane(src["tab"]); s["panes"][p].update(w=src["w"], h=src["h"]); save(s)
+    ok({"pane": {"pane_id": p}})
+if a[:2] == ["pane", "process-info"]:
+    p = pane(a[a.index("--pane") + 1]); busy = p["proc"] and alive(p["proc"])
+    ok({"process_info": {"shell_pid": 1, "foreground_process_group_id": p["proc"] if busy else 1}})
+if a[:2] == ["pane", "rename"]:
+    pane(a[2])["label"] = a[3]; save(s); ok({})
+if a[:2] == ["pane", "run"]:
+    p = pane(a[2])
+    log = open(os.path.join(D, a[2].replace(":", "_") + ".out"), "a")
+    proc = subprocess.Popen(a[3], shell=True, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+    p["proc"] = proc.pid; save(s); ok({})
+if a[:2] == ["pane", "send-keys"]:
+    p = pane(a[2])
+    if "ctrl+c" in a[3:] and p["proc"]:
+        try: os.killpg(p["proc"], signal.SIGINT)
+        except OSError: pass
+    ok({})
+if a[:2] == ["pane", "read"]:
+    fn = os.path.join(D, a[2].replace(":", "_") + ".out")
+    print(open(fn).read()[-4000:] if os.path.exists(fn) else ""); sys.exit(0)
+if a[:2] == ["pane", "close"]:
+    p = s["panes"].pop(a[2], None)
+    if p and p["proc"]:
+        try: os.killpg(p["proc"], signal.SIGHUP)
+        except OSError: pass
+    save(s); ok({})
+err("unsupported", " ".join(a))

@@ -1,0 +1,4 @@
+.claude-flow/
+__pycache__/
+.pytest_cache/
+.hw/

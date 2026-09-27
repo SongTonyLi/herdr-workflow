@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+"""Fake dsh headless. Behaviour is driven by markers in the prompt text:
+  [[sleep N]]   sleep N seconds before working (for interrupt/kill tests)
+  [[block]]     report STATUS: BLOCKED unless the prompt also contains "HINT-OK"
+  [[fail]]      exit 1 without a final event
+  [[file X]]    write file X (default work-<task>.txt) in cwd and commit it
+Records every invocation (argv, session, cwd) in $FAKE_HERDR_DIR/dsh.log.
+"""
+import json, os, re, subprocess, sys, time, uuid
+
+args = sys.argv[1:]
+prompt = sys.stdin.read()
+sid = args[args.index("--session-id") + 1] if "--session-id" in args else f"session-{uuid.uuid4()}"
+patch = args[args.index("--patch") + 1] if "--patch" in args else None
+model = None
+if patch:
+    for e in json.load(open(patch)):
+        if e["id"] == "agent-default-model": model = e["config"]["model"]
+with open(os.path.join(os.environ["FAKE_HERDR_DIR"], "dsh.log"), "a") as f:
+    f.write(json.dumps({"session": sid, "resumed": "--session-id" in args, "cwd": os.getcwd(), "model": model,
+                        "prompt_head": prompt[:120]}) + "\n")
+def emit(o): print(json.dumps(o), flush=True)
+emit({"type": "session", "sessionId": sid, "cwd": os.getcwd()})
+emit({"type": "status", "phase": "turn_start", "turn": 1})
+m = re.search(r"\[\[sleep (\d+)\]\]", prompt)
+if m and "RESUMED-NO-SLEEP" not in prompt and "You were interrupted" not in prompt:
+    time.sleep(int(m.group(1)))
+if "[[fail]]" in prompt and "HINT-OK" not in prompt:
+    sys.exit(1)
+result = re.search(r"`(/[^`]*/result\.md)`", prompt)
+task = re.search(r"task (\S+)", prompt)
+blocked = "[[block]]" in prompt and "HINT-OK" not in prompt
+if not blocked and "DO NOT modify" not in prompt:
+    fm = re.search(r"\[\[file (\S+)\]\]", prompt)
+    fn = fm.group(1) if fm else "work-%s.txt" % os.path.basename(os.getcwd())
+    with open(fn, "a") as f: f.write(f"{model} {sid}\n")
+    subprocess.run(["git", "add", "-A"], check=True)
+    subprocess.run(["git", "commit", "-qm", f"fake work by {model}"], check=True)
+    emit({"type": "tool_call", "callId": "c1", "tool": "write", "input": {"file_path": fn}})
+    emit({"type": "tool_result", "callId": "c1", "status": "completed", "result": "ok"})
+ans = re.search(r"`(/[^`]*/consult-\d+\.md)`", prompt)
+if ans:
+    open(ans.group(1), "w").write("Diagnosis: add HINT-OK\n")
+elif result:
+    open(result.group(1), "w").write(f"STATUS: {'BLOCKED' if blocked else 'DONE'}\nSUMMARY: fake by {model}\nVERIFY: n/a\nQUESTIONS: none\n")
+emit({"type": "status", "phase": "turn_end", "turn": 1, "reason": {"kind": "completed"}})
+emit({"type": "final", "text": "done"})
