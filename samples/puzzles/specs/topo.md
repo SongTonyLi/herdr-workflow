@@ -1,0 +1,2 @@
+Create `puzzles/topo.py` with `schedule(tasks: dict[str, tuple[int, list[str]]], workers: int) -> tuple[int, dict[str, int]]`.
+`tasks` maps name -> (duration, deps). Simulate list scheduling: at each moment, idle workers take ready tasks (all deps finished) by priority = longest remaining critical path (duration + max path to any sink), ties by name. Return (makespan, {task: start_time}). Raise ValueError on cycles (message must name one task on the cycle) or unknown deps. Tests in `tests/test_topo.py` including a diamond graph, workers=1 (sum of durations), and a cycle.

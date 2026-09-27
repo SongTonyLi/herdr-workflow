@@ -14,3 +14,8 @@ V() { echo "PYTHONPATH=. uvx --with pytest pytest -q -p no:cacheprovider tests/t
 "$HW" task add intervals --kind implement --title "Interval merge/insert"                              --spec-file "$S/intervals.md" --files puzzles/intervals.py tests/test_intervals.py --verify "$(V intervals)"
 "$HW" task add roman     --kind implement --title "Roman numerals (strict)"                            --spec-file "$S/roman.md"     --files puzzles/roman.py tests/test_roman.py         --verify "$(V roman)"
 "$HW" todo
+# Added mid-run for the live rescue-ladder drills (assign these to flash manually, then consult/steer or rescue):
+"$HW" task add sudoku --kind implement --title "Sudoku solver/generator (forced rescue drill)" --spec-file "$S/sudoku.md" \
+  --files puzzles/sudoku.py tests/test_sudoku.py --verify "$(V sudoku)"
+"$HW" task add topo --kind implement --title "Critical-path list scheduler (live rescue drill)" --spec-file "$S/topo.md" \
+  --files puzzles/topo.py tests/test_topo.py --verify "PYTHONPATH=. uvx --with pytest pytest -q -p no:cacheprovider tests/test_topo.py"
