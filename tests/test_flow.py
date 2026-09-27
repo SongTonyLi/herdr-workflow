@@ -213,3 +213,29 @@ def test_concurrent_waiters_both_see_turn_end(env):
     outs = [json.loads(p.communicate(timeout=60)[0]) for p in procs]
     for o in outs:
         assert [e["event"] for e in o["events"]] == ["turn_end"] and o["needs_review"] == ["w"]
+
+
+def test_merge_syncs_first_without_status_call(env):
+    add(env, "m", spec="[[file m.txt]]")
+    env.hwj("assign", "m")
+    assert _wait_for(lambda: (env.root / ".hw/logs").exists() and list((env.root / ".hw/logs").glob("*/turn-1.exit")))
+    # no wait/status in between: merge must reconcile on its own
+    assert env.hwj("merge", "m")["merged"] is True
+
+
+def test_untracked_files_in_base_do_not_block_merge(env):
+    (env.root / ".claude-flow").mkdir()
+    (env.root / ".claude-flow" / "x.json").write_text("{}")
+    add(env, "u", spec="[[file u.txt]]")
+    env.hwj("assign", "u")
+    env.wait_all()
+    assert env.hwj("merge", "u")["merged"] is True
+    (env.root / "README").write_text("x")
+    subprocess.run(["git", "add", "README"], cwd=env.root, check=True)
+    subprocess.run(["git", "commit", "-qm", "r"], cwd=env.root, check=True, env=env.env)
+    (env.root / "README").write_text("modified")
+    add(env, "v", spec="[[file v.txt]]")
+    env.hwj("assign", "v")
+    env.wait_all()
+    p = env.hw("merge", "v", check=False)
+    assert p.returncode != 0 and "tracked" in p.stderr

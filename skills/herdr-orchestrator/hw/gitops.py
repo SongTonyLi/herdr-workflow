@@ -68,8 +68,10 @@ def remove_worktree(root: Path, path: Path) -> None:
     git(root, "worktree", "prune", check=False)
 
 
-def dirty(path: Path) -> str:
-    return git(path, "status", "--porcelain", check=False).stdout
+def dirty(path: Path, tracked_only: bool = False) -> str:
+    # Untracked files can't be clobbered by a merge (git refuses), so they needn't block one.
+    extra = ["--untracked-files=no"] if tracked_only else []
+    return git(path, "status", "--porcelain", *extra, check=False).stdout
 
 
 def commit_all(path: Path, message: str) -> bool:

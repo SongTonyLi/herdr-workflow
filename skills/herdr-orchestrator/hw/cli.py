@@ -633,6 +633,8 @@ def cmd_wait(a):
 
 def cmd_review(a):
     st = store()
+    with st.mutate() as s:
+        sync_state(st, s)
     s = st.read()
     t = s["tasks"].get(a.task) or die(f"no task {a.task}")
     wt = Path(t.get("worktree") or st.wt_path(a.task))
@@ -663,6 +665,8 @@ def cmd_review(a):
 def cmd_merge(a):
     st = store()
     with st.lock("merge"):
+        with st.mutate() as s:
+            sync_state(st, s)
         s = st.read()
         t = s["tasks"].get(a.task) or die(f"no task {a.task}")
         if t["status"] not in ("review", "running") and not a.force:
@@ -674,8 +678,8 @@ def cmd_merge(a):
             st.event("autocommit", task=a.task)
         if gitops.current_branch(st.root) != s["base_branch"]:
             die(f"project root is not on base branch {s['base_branch']}")
-        if gitops.dirty(st.root).strip():
-            die("project root has uncommitted changes; commit or stash them before merging")
+        if gitops.dirty(st.root, tracked_only=True).strip():
+            die("project root has uncommitted changes to tracked files; commit or stash them before merging")
         if gitops.commits_ahead(st.root, s["base_branch"], t["branch"]) == 0:
             die(f"branch {t['branch']} has no commits beyond {s['base_branch']}")
         before = gitops.head(st.root)
